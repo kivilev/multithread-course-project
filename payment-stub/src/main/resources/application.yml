@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: payment-stub
+
+stub-properties:
+  pricing: 123
+  waregouse: 234
+
+# настройки Swagger
+springdoc:
+  swagger-ui:
+    path: /swagger-ui
