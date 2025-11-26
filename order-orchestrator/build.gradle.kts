@@ -4,7 +4,13 @@ plugins {
     id("io.spring.dependency-management") version "1.1.7"
 }
 
-version = "1.0-SNAPSHOT"
+version = "1.0.0"
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(21))
+    }
+}
 
 dependencies {
     implementation(project(":common-libs"))
@@ -15,7 +21,7 @@ dependencies {
     developmentOnly("org.springframework.boot:spring-boot-docker-compose")
 
     // additional libs
-    developmentOnly("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0")
     implementation("org.liquibase:liquibase-core")
     runtimeOnly("org.postgresql:postgresql")
 

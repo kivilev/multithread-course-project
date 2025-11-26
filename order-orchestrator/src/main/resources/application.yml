@@ -15,7 +15,8 @@ spring:
         command: up                         # использовать `docker compose up`
         arguments: --force-recreate         # ВСЕГДА пересоздавать контейнеры
       stop:
-        command: down                       # полностью закрывает контейнеры
+        command: down                     # полностью закрывает контейнеры
+        arguments: -v
 
 # настройки Swagger
 springdoc:

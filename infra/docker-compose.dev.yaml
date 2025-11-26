@@ -33,7 +33,7 @@ services:
       - "8080:8080"
     depends_on:
       - postgres
-      - payment-stub-stub
+      - payment-stub
     mem_limit: 512m
     cpus: "2"
 
