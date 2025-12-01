@@ -21,7 +21,7 @@ services:
 
   order-orchestrator:
     build:
-      context: ../order-orchestrator
+      context: ..
       dockerfile: Dockerfile
     environment:
       SERVER_PORT: 8080
