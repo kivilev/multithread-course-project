@@ -22,7 +22,7 @@ services:
   order-orchestrator:
     build:
       context: ..
-      dockerfile: Dockerfile
+      dockerfile: order-orchestrator/Dockerfile
     environment:
       SERVER_PORT: 8080
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/orders
