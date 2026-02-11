@@ -12,6 +12,9 @@ services:
 
   payment-stub:
     image: payment-stub:latest
+    build:
+      context: ..
+      dockerfile: payment-stub/Dockerfile
     environment:
       SERVER_PORT: 8081
     ports:
@@ -20,6 +23,7 @@ services:
     cpus: "1"
 
   order-orchestrator:
+    image: order-orchestrator:latest
     build:
       context: ..
       dockerfile: order-orchestrator/Dockerfile
