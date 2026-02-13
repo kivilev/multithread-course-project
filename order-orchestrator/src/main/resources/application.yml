@@ -2,9 +2,9 @@ spring:
   application:
     name: order-orchestrator
   datasource:
-    url: ${SPRING_DATASOURCE_URL:not-set}
-    username: ${SPRING_DATASOURCE_USERNAME:not-set}
-    password: ${SPRING_DATASOURCE_PASSWORD:not-set}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/orders}
+    username: ${SPRING_DATASOURCE_USERNAME:user}
+    password: ${SPRING_DATASOURCE_PASSWORD:pass}
   liquibase:
     change-log: classpath:/db/changelog/changelog-master.yaml
   docker:
@@ -22,3 +22,6 @@ spring:
 springdoc:
   swagger-ui:
     path: /swagger-ui
+
+payment:
+  stub-url: ${PAYMENT_STUB_URL:http://localhost:8081}

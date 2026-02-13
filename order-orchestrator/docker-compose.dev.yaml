@@ -7,16 +7,13 @@ services:
       POSTGRES_PASSWORD: pass
     ports:
       - "5432:5432"
-    mem_limit: 384m
-    cpus: "1"
 
   payment-stub:
     image: payment-stub:latest
+    build:
+      context: ..
+      dockerfile: payment-stub/Dockerfile
     environment:
       SERVER_PORT: 8081
     ports:
       - "8081:8081"
-    mem_limit: 384m
-    cpus: "1"
-
-

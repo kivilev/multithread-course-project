@@ -31,6 +31,7 @@ Swagger UI: `http://localhost:8081/swagger-ui/index.html` (можно отклю
 - `STUB_WAREHOUSE_EXCEPTION_ENABLED` (true/false)
 - `STUB_WAREHOUSE_EXCEPTION_PROBABILITY` (0..1)
 - `STUB_WAREHOUSE_FINAL_AMOUNT_MIN` / `STUB_WAREHOUSE_FINAL_AMOUNT_MAX`
+  - По умолчанию: 100..10000.
 
 ## Сборка и запуск
 ```bash
@@ -43,5 +44,4 @@ Swagger UI: `http://localhost:8081/swagger-ui/index.html` (можно отклю
 
 ## Docker
 - Dockerfile в корне модуля.
-- Быстрый билд образа: `./infra/build-stub-image.dev.sh`.
 - В составе стека поднимается через `infra/docker-compose.dev.yaml` на порту 8081.

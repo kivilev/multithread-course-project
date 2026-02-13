@@ -5,77 +5,65 @@
 ## Архитектура
 - `common-libs` — общие модели/DTO для платежного шлюза и ценового сервиса.
 - `order-orchestrator` — API для заказов + каркас оркестрации платежа (бизнес-логика пишется студентами).
-- `payment-stub` — HTTP-стабы платежного шлюза и пересчёта цен с настраиваемым поведением.
-- `infra/docker-compose.dev.yaml` — общий compose для Postgres + стобы + оркестратор (образы нужно собрать заранее).
-- `order-orchestrator/docker-compose.dev.yaml` — локальный compose для оркестратора (Postgres + stubs) при запуске через Spring Docker Compose plugin.
+- `payment-stub` — HTTP-стабы платежного шлюза и пересчета цен с настраиваемым поведением.
+- `order-orchestrator/docker-compose.dev.yaml` — Postgres + стабы для разработки через IDE.
+- `infra/docker-compose.dev.yaml` — полный стек (Postgres + стабы + оркестратор).
 
-Все модули собраны на Java 21 / Spring Boot 3.5.7. Gradle настроен на toolchain 21, так что системная JDK не критична.
+## Требования
+- Docker Desktop (Compose v2).
+- JDK 21 нужен только для локального запуска без Docker.
 
-## Быстрый старт
-1. Убедись, что есть Docker и JDK 21.
-2. Собрать артефакты:
+## Режим разработки (IntelliJ IDEA)
+1. Убедись, что Docker Desktop запущен.
+2. Подними инфраструктуру для разработки:
    ```bash
-   ./gradlew :payment-stub:bootJar :order-orchestrator:bootJar
+   docker compose -f order-orchestrator/docker-compose.dev.yaml up --build
    ```
-3. Собрать образы:
+3. Запусти `order-orchestrator` из IntelliJ IDEA.
+   - По умолчанию используются:
+     - `SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/orders`
+     - `SPRING_DATASOURCE_USERNAME=user`
+     - `SPRING_DATASOURCE_PASSWORD=pass`
+     - `PAYMENT_STUB_URL=http://localhost:8081`
+   - При необходимости переопредели их в конфигурации запуска.
 
-   - Собрать образ stub'а:
-      ```bash
-      bash ./infra/build-stub-image.dev.sh
-      ```
+## Полный стек (одна команда)
+```bash
+docker compose -f infra/docker-compose.dev.yaml up --build
+```
+По умолчанию: оркестратор на `http://localhost:8080`, стаб на `http://localhost:8081`, Postgres на `localhost:5432`.
 
-   - Собрать образ оркестратора:
-      ```bash
-      bash ./infra/build-orchestrator-image.dev.sh
-      ```
-4. Запустить весь стек:
-   ```bash
-   docker compose -f infra/docker-compose.dev.yaml up --build
-   ```
-   По умолчанию: оркестратор на `http://localhost:8080`, стаб на `http://localhost:8081`, Postgres на `localhost:5432`.
+## Локальный запуск сервисов без Docker
+macOS/Linux:
+```bash
+./gradlew :order-orchestrator:bootRun
+./gradlew :payment-stub:bootRun
+```
 
-## Запуск сервисов отдельно
-- Оркестратор локально:
-  ```bash
-  ./gradlew :order-orchestrator:bootRun
-  ```
-- Стаб локально:
-  ```bash
-  ./gradlew :payment-stub:bootRun
-  ```
-  Конфигурация задаётся env-переменными `STUB_PAYMENT_*` и `STUB_WAREHOUSE_*` (см. README модуля).
+Windows PowerShell:
+```powershell
+.\gradlew.bat :order-orchestrator:bootRun
+.\gradlew.bat :payment-stub:bootRun
+```
 
 ## Swagger/UI
-- Оркестратор (если включён SpringDoc): `http://localhost:8080/swagger-ui/index.html`
+- Оркестратор (если включен SpringDoc): `http://localhost:8080/swagger-ui/index.html`
 - Payment Stub: `http://localhost:8081/swagger-ui/index.html`
 
-## Compose варианты
-- Общий стек: `infra/docker-compose.dev.yaml` — весь набор (Postgres + стобы + оркестратор).
-- Локальный для оркестратора: `order-orchestrator/docker-compose.dev.yaml` — можно стартовать через Spring Docker Compose plugin при `bootRun`.
-
-## Полезные команды для общего Docker Compose
-- Старт общего стека (с пересборкой):  
+## Compose команды
+- Старт общего стека (с пересборкой):
   ```bash
   docker compose -f infra/docker-compose.dev.yaml up --build
   ```
-- Остановка с удалением контейнеров/сетей (тома остаются):  
+- Остановка с удалением контейнеров/сетей (тома остаются):
   ```bash
   docker compose -f infra/docker-compose.dev.yaml down
   ```
-- Полное удаление с томами:  
+- Полное удаление с томами:
   ```bash
   docker compose -f infra/docker-compose.dev.yaml down -v
   ```
-- Перезапуск с подтягиванием новой конфигурации/образов:  
-  ```bash
-  docker compose -f infra/docker-compose.dev.yaml up -d --build --force-recreate
-  ```
-- Просмотр логов:  
+- Просмотр логов:
   ```bash
   docker compose -f infra/docker-compose.dev.yaml logs -f
   ```
-
-## Документация по модулям
-- `common-libs/README.md` — что внутри и как использовать.
-- `order-orchestrator/README.md` — API заказов, конфигурация, запуск.
-- `payment-stub/README.md` — эндпоинты стаба, конфигурация, запуск, Swagger.
