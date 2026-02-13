@@ -8,7 +8,7 @@ services:
     ports:
       - "5432:5432"
     mem_limit: 384m
-    cpus: "1"
+    cpus: 1
 
   payment-stub:
     image: payment-stub:latest
@@ -20,7 +20,7 @@ services:
     ports:
       - "8081:8081"
     mem_limit: 384m
-    cpus: "1"
+    cpus: 1
 
   order-orchestrator:
     image: order-orchestrator:latest
@@ -39,5 +39,4 @@ services:
       - postgres
       - payment-stub
     mem_limit: 512m
-    cpus: "2"
-
+    cpus: 2
