@@ -33,24 +33,6 @@ docker compose -f infra/docker-compose.dev.yaml up --build
 ```
 По умолчанию: оркестратор на `http://localhost:8080`, стаб на `http://localhost:8081`, Postgres на `localhost:5432`.
 
-## Сборка образов вручную (необязательно)
-macOS/Linux:
-```bash
-bash ./infra/build-stub-image.dev.sh
-bash ./infra/build-orchestrator-image.dev.sh
-```
-
-Windows PowerShell:
-```powershell
-.\infra\build-stub-image.dev.ps1
-.\infra\build-orchestrator-image.dev.ps1
-```
-
-Если политика PowerShell блокирует запуск скриптов:
-```powershell
-powershell -ExecutionPolicy Bypass -File .\infra\build-stub-image.dev.ps1
-```
-
 ## Локальный запуск сервисов без Docker
 macOS/Linux:
 ```bash
