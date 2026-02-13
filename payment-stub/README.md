@@ -4,10 +4,10 @@ HTTP-стады платежного шлюза и сервиса пересчё
 
 ## Эндпоинты
 - `POST /payment/authorize` — авторизация холда.
-  - Request: `{ "customerId": "UUID", "amount": 5000 }`
+  - Request: `{ "customerId": 1, "amount": 5000 }`
   - Response: `{ "authorizationId": "...", "authorizedAmount": 5000, "status": "AUTHORIZED|DECLINED", "message": "..." }`
 - `POST /payment/capture` — списание.
-  - Request: `{ "captureAmount": 4800, "customerId": "UUID" }`
+  - Request: `{ "captureAmount": 4800, "customerId": 1 }`
   - Response: `{ "captureId": "...", "capturedAmount": 4800, "status": "CAPTURED|FAILED", "message": "..." }`
 - `POST /warehouse/calculate-price` — пересчёт цены заказа.
   - Request: `{ "orderId": "UUID" }`
