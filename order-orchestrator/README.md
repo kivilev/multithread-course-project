@@ -7,9 +7,9 @@
 - `GET /order/{id}` — получить заказ по id (возвращает адрес/id; статусы/суммы добавляются студентами).
 
 ## Конфигурация (env)
-- `SPRING_DATASOURCE_URL` — JDBC для Postgres.
+- `SPRING_DATASOURCE_URL` — JDBC для Postgres (по умолчанию `jdbc:postgresql://localhost:5432/orders`).
 - `SPRING_DATASOURCE_USERNAME` / `SPRING_DATASOURCE_PASSWORD`.
-- `PAYMENT_STUB_URL` — URL платежного/warehouse стаба (например, `http://payment-stub:8081`).
+- `PAYMENT_STUB_URL` — URL платежного/warehouse стаба (по умолчанию `http://localhost:8081`).
 - Liquibase changelog: `classpath:/db/changelog/changelog-master.yaml`.
 
 ## Сборка и запуск
@@ -23,7 +23,8 @@
 
 ## Docker
 - Dockerfile лежит в корне модуля.
-- Для общего запуска см. `infra/docker-compose.dev.yaml` (нужна сборка образов заранее).
+- Для разработки через IDE можно поднять только инфраструктуру: `order-orchestrator/docker-compose.dev.yaml`.
+- Для полного запуска см. `infra/docker-compose.dev.yaml`.
 
 ## Что делает студент
 - Добавляет недостающие поля/таблицы (orders/payments/payment_tasks).
