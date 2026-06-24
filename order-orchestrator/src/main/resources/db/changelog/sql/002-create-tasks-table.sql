@@ -3,7 +3,7 @@
 CREATE TABLE IF NOT EXISTS tasks
 (
     id              UUID PRIMARY KEY DEFAULT uuidv7(),
-    order_id        UUID not null,
+    order_id        UUID not null references orders(id),
     status          numeric not null,
     result          numeric,
     step            numeric not null,
@@ -14,4 +14,4 @@ CREATE TABLE IF NOT EXISTS tasks
 );
 
 create unique index tasks_order_id_i on tasks(order_id);
-create index tasks_next_attempt_at_i on tasks(next_attempt_at);
+create index tasks_status_next_attempt_at_i on tasks(status, next_attempt_at);

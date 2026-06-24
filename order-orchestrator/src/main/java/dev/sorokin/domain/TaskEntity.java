@@ -35,7 +35,7 @@ public class TaskEntity {
 
     @Id
     @Column(name = "id", nullable = false, updatable = false)
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
     @Column(name = "order_id", nullable = false)
@@ -43,7 +43,7 @@ public class TaskEntity {
 
     @Column(name = "status", nullable = false)
     @Convert(converter = TaskStatusConverter.class)
-    private TaskStatus taskStatus;
+    private TaskStatus status;
 
     @Column(name = "result")
     @Convert(converter = TaskResultConverter.class)

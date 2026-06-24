@@ -14,6 +14,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.ToString;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -30,17 +31,21 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @EntityListeners(AuditingEntityListener.class)
+@ToString(of = {"id", "paymentStatus", "customerId"})
 public class OrderEntity {
 
     @Id
     @Column(name = "id", nullable = false, updatable = false)
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
     @Column(name = "address")
     private String address;
 
-    @Column(name = "status")
+    @Column(name = "customer_id", nullable = false, updatable = false)
+    Long customerId;
+
+    @Column(name = "status", nullable = false)
     @Convert(converter = PaymentStatusConverter.class)
     private PaymentStatus paymentStatus;
 

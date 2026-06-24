@@ -31,6 +31,7 @@ public class OrderService {
         var newOrder = OrderEntity.builder()
                 .address(requestDto.address())
                 .clientEstimate(requestDto.clientEstimate())
+                .customerId(requestDto.customerId())
                 .paymentStatus(PaymentStatus.NEW)
                 .build();
         var createdOrder = orderRepository.save(newOrder);
@@ -38,8 +39,8 @@ public class OrderService {
         var newTask = TaskEntity.builder()
                 .orderId(createdOrder.getId())
                 .attempts(0)
-                .step(TaskStep.AUTH)
-                .taskStatus(TaskStatus.NEW)
+                .step(TaskStep.NEW)
+                .status(TaskStatus.NEW)
                 .build();
         taskRepository.save(newTask);
 

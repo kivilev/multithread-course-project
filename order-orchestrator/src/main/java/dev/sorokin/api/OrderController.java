@@ -53,6 +53,7 @@ public class OrderController {
         return OrderDto.builder()
                 .id(order.getId())
                 .address(order.getAddress())
+                .customerId(order.getCustomerId())
                 .paymentStatus(order.getPaymentStatus().name())
                 .clientEstimate(order.getClientEstimate())
                 .capturedAmount(order.getCapturedAmount())

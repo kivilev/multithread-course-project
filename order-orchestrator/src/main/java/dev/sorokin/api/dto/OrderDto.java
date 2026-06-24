@@ -1,6 +1,5 @@
 package dev.sorokin.api.dto;
 
-import dev.sorokin.domain.PaymentStatus;
 import lombok.Builder;
 
 import java.math.BigDecimal;
@@ -10,6 +9,7 @@ import java.util.UUID;
 public record OrderDto(
         UUID id,
         String address,
+        Long customerId,
         String paymentStatus,
         BigDecimal clientEstimate,
         BigDecimal finalAmount,

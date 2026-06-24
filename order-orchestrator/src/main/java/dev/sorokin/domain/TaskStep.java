@@ -7,9 +7,10 @@ import lombok.Getter;
 @AllArgsConstructor
 @Getter
 public enum TaskStep implements EnumUtils.IntEnum {
-    AUTH(0),
-    REPRICE(1),
-    CAPTURE(2);
+    NEW(0),
+    AUTH(1),
+    REPRICE(2),
+    CAPTURE(3);
 
     private final int id;
 
