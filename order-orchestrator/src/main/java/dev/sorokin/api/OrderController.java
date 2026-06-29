@@ -4,6 +4,7 @@ import dev.sorokin.api.dto.OrderCreateRequestDto;
 import dev.sorokin.api.dto.OrderDto;
 import dev.sorokin.domain.OrderEntity;
 import dev.sorokin.service.OrderService;
+import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -27,7 +28,7 @@ public class OrderController {
 
     @PostMapping
     public ResponseEntity<OrderDto> createOrder(
-            @RequestBody OrderCreateRequestDto orderCreateRequestDto
+            @Valid @RequestBody OrderCreateRequestDto orderCreateRequestDto
     ) {
         log.info("Received request to create order: request={}", orderCreateRequestDto);
         var created = orderService.createOrder(orderCreateRequestDto);
