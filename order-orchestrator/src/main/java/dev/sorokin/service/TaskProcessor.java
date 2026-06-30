@@ -73,7 +73,8 @@ public class TaskProcessor {
 
     private TaskProcessResult executeAuth(TaskEntity task, OrderEntity order) {
         var orderId = order.getId();
-        AuthorizePaymentResponseDto authorizePaymentResponse = stubHttpClient.paymentAuthorize(mapToAuthorizePaymentRequest(order));
+        AuthorizePaymentResponseDto authorizePaymentResponse = stubHttpClient.paymentAuthorize(
+                mapToAuthorizePaymentRequest(task, order));
         if (AuthorizationStatus.DECLINED.equals(authorizePaymentResponse.status())) {
             log.warn("Payment wasn't authorized. orderId:{}, taskId:{}, message:{}", orderId, task.getId(), authorizePaymentResponse.message());
             return new TaskProcessResult(handleAuthorizePaymentRejected(order, authorizePaymentResponse), TaskStep.AUTH);
@@ -130,7 +131,8 @@ public class TaskProcessor {
             }
         }
 
-        CapturePaymentResponseDto paymentCaptureResponse = stubHttpClient.paymentCapture(mapToCapturePaymentRequest(order));
+        CapturePaymentResponseDto paymentCaptureResponse = stubHttpClient.paymentCapture(
+                mapToCapturePaymentRequest(task, order));
         if (CaptureStatus.FAILED.equals(paymentCaptureResponse.status())) {
             log.warn("Payment wasn't captured. orderId:{}, taskId:{}, message:{}", orderId, task.getId(),
                     paymentCaptureResponse.message());
@@ -179,15 +181,27 @@ public class TaskProcessor {
         return TaskExecutionStatus.FAILED_NON_RETRYABLE;
     }
 
-    private AuthorizePaymentRequestDto mapToAuthorizePaymentRequest(OrderEntity order) {
-        return new AuthorizePaymentRequestDto(order.getCustomerId(), order.getClientEstimate());
+    private AuthorizePaymentRequestDto mapToAuthorizePaymentRequest(TaskEntity task, OrderEntity order) {
+        return new AuthorizePaymentRequestDto(
+                order.getCustomerId(),
+                order.getClientEstimate(),
+                idempotencyKey(task, "auth")
+        );
     }
 
     private CalculatePricingRequestDto mapToCalculatePricingRequest(OrderEntity order) {
         return new CalculatePricingRequestDto(order.getId());
     }
 
-    private CapturePaymentRequestDto mapToCapturePaymentRequest(OrderEntity order) {
-        return new CapturePaymentRequestDto(order.getFinalAmount(), order.getCustomerId());
+    private CapturePaymentRequestDto mapToCapturePaymentRequest(TaskEntity task, OrderEntity order) {
+        return new CapturePaymentRequestDto(
+                order.getFinalAmount(),
+                order.getCustomerId(),
+                idempotencyKey(task, "capture")
+        );
+    }
+
+    private String idempotencyKey(TaskEntity task, String operation) {
+        return task.getId() + ":" + operation;
     }
 }

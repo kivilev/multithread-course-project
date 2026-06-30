@@ -7,5 +7,6 @@ import java.math.BigDecimal;
  */
 public record CapturePaymentRequestDto(
         BigDecimal captureAmount,
-        Long customerId
+        Long customerId,
+        String idempotencyKey
 ) {}
