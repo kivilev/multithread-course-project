@@ -9,12 +9,13 @@ import dev.sorokin.domain.TaskStep;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 
 @Service
 @AllArgsConstructor
@@ -22,17 +23,31 @@ import java.util.concurrent.ExecutorService;
 public class TaskDispatcher {
 
     private final TaskProcessor taskProcessor;
-    private final ExecutorService taskDispatcherThreadPool;
+    private final AsyncTaskExecutor taskDispatcherAsyncExecutor;
     private final TaskJpaRepository taskRepository;
     private final Clock clock;
     private final TaskDispatcherProperties properties;
 
     @Transactional
     public void dispatch(TaskEntity task) {
-        CompletableFuture
-                .supplyAsync(() -> taskProcessor.processTask(task), taskDispatcherThreadPool)
-                .thenAccept(result -> handleTaskExecuted(task, result))
-                .exceptionally(ex -> handleExceptionInTaskHappened(task, ex));
+        try {
+            CompletableFuture
+                    .supplyAsync(() -> taskProcessor.processTask(task), taskDispatcherAsyncExecutor)
+                    .thenAccept(result -> handleTaskExecuted(task, result))
+                    .exceptionally(ex -> handleExceptionInTaskHappened(task, ex));
+        } catch (RejectedExecutionException ex) {
+            log.warn("Task dispatch rejected (pool full or shutting down): taskId={}", task.getId(), ex);
+            rescheduleAfterPoolReject(task);
+        }
+    }
+
+    private void rescheduleAfterPoolReject(TaskEntity task) {
+        var nextAttemptAt = Instant.now(clock).plus(properties.getPoolRejectRetryDelay());
+        taskRepository.save(task.toBuilder()
+                .status(TaskStatus.FAILED_RETRYABLE)
+                .step(task.getStep())
+                .nextAttemptAt(nextAttemptAt)
+                .build());
     }
 
     private Void handleExceptionInTaskHappened(

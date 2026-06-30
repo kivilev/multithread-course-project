@@ -16,4 +16,10 @@ public class TaskDispatcherProperties {
     private int threadPoolSize;
 
     private int maxAttempts;
+
+    private int queueSize;
+
+    private int awaitTerminationSeconds;
+
+    private Duration poolRejectRetryDelay;
 }
