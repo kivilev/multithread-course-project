@@ -59,6 +59,9 @@ public class TaskEntity {
     @Column(name = "next_attempt_at")
     private Instant nextAttemptAt;
 
+    @Column(name = "locked_until")
+    private Instant lockedUntil;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

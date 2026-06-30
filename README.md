@@ -38,7 +38,7 @@ sequenceDiagram
 ```
 
 1. **Создание заказа** — `POST /order` сохраняет заказ со статусом `NEW` и создаёт задачу в таблице `tasks`.
-2. **Poller** — по расписанию забирает задачи в статусах `NEW`, `FAILED_RETRYABLE`, `IN_PROGRESS` (с учётом `next_attempt_at`) и помечает их `IN_PROGRESS`.
+2. **Poller** — по расписанию забирает задачи в статусах `NEW`, `FAILED_RETRYABLE`, `IN_PROGRESS` (retry — по `next_attempt_at`, повторный подхват зависших — по `locked_until`) и помечает их `IN_PROGRESS`.
 3. **Dispatcher** — выполняет задачу в thread pool и по результату переводит её в `SUCCEEDED`, `FAILED_RETRYABLE` или `FAILED_NON_RETRYABLE`.
 4. **Processor** — последовательно вызывает authorize → calculate-price → capture; при отказе на любом шаге обновляет `paymentStatus` заказа.
 

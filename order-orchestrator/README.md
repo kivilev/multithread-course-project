@@ -49,7 +49,7 @@
 
 **`orders`** — заказ и результат оплаты (`status`, суммы, `failure_reason`).
 
-**`tasks`** — одна задача на заказ (`order_id` unique), поля `status`, `step`, `attempts`, `next_attempt_at`, `result`.
+**`tasks`** — одна задача на заказ (`order_id` unique), поля `status`, `step`, `attempts`, `next_attempt_at` (retry), `locked_until` (lease), `result`.
 
 Миграции: Liquibase, `classpath:/db/changelog/changelog-master.yaml`.
 

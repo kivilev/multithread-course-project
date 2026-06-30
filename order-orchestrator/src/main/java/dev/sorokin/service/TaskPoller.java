@@ -50,7 +50,8 @@ public class TaskPoller {
 
             tasks.forEach(task -> {
                 task.setStatus(TaskStatus.IN_PROGRESS);
-                task.setNextAttemptAt(leaseExpiresAt);
+                task.setLockedUntil(leaseExpiresAt);
+                task.setNextAttemptAt(null);
             });
 
             taskRepository.saveAll(tasks);

@@ -47,6 +47,7 @@ public class TaskDispatcher {
                 .status(TaskStatus.FAILED_RETRYABLE)
                 .step(task.getStep())
                 .nextAttemptAt(nextAttemptAt)
+                .lockedUntil(null)
                 .build());
     }
 
@@ -79,6 +80,7 @@ public class TaskDispatcher {
                 .step(taskStep)
                 .taskResult(TaskResult.FAILURE)
                 .nextAttemptAt(null)
+                .lockedUntil(null)
                 .build());
     }
 
@@ -88,6 +90,7 @@ public class TaskDispatcher {
                 .step(taskStep)
                 .taskResult(TaskResult.SUCCESS)
                 .nextAttemptAt(null)
+                .lockedUntil(null)
                 .build());
     }
 
@@ -102,6 +105,7 @@ public class TaskDispatcher {
                     .step(taskStep)
                     .attempts(nextAttempts)
                     .nextAttemptAt(null)
+                    .lockedUntil(null)
                     .build());
             return;
         }
@@ -112,6 +116,7 @@ public class TaskDispatcher {
                 .step(taskStep)
                 .attempts(nextAttempts)
                 .nextAttemptAt(nextAttemptAt)
+                .lockedUntil(null)
                 .build());
     }
 

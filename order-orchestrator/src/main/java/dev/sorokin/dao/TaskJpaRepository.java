@@ -16,7 +16,7 @@ public interface TaskJpaRepository extends JpaRepository<TaskEntity, UUID> {
                                   from tasks t 
                                  where t.status = :taskStatus
                                     or (status = :retryStatus and next_attempt_at <= :now)
-                                    or (status = :processingStatus and next_attempt_at <= :now)       
+                                    or (status = :processingStatus and locked_until <= :now)
                                   limit :pickBatchSize
                                  for update skip locked
                     """,

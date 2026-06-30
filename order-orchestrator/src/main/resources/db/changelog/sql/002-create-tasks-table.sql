@@ -9,9 +9,11 @@ CREATE TABLE IF NOT EXISTS tasks
     step            numeric not null,
     attempts        numeric not null,
     next_attempt_at timestamp with time zone,
+    locked_until    timestamp with time zone,
     created_at      timestamp with time zone not null,
     updated_at      timestamp with time zone not null
 );
 
 create unique index tasks_order_id_i on tasks(order_id);
 create index tasks_status_next_attempt_at_i on tasks(status, next_attempt_at);
+create index tasks_status_locked_until_i on tasks(status, locked_until);
