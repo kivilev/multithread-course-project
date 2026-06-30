@@ -94,11 +94,13 @@ public class TaskDispatcher {
     private void scheduleTaskRetry(TaskEntity task, TaskStep taskStep) {
         log.info("Scheduling default retry for taskId={}", task.getId());
 
-        if (task.getAttempts() >= properties.getMaxAttempts()) {
+        var nextAttempts = task.getAttempts() + 1;
+        if (nextAttempts >= properties.getMaxAttempts()) {
             log.error("Maximum number of retries reached: taskId={}", task.getId());
             taskRepository.save(task.toBuilder()
                     .status(TaskStatus.FAILED_NON_RETRYABLE)
                     .step(taskStep)
+                    .attempts(nextAttempts)
                     .nextAttemptAt(null)
                     .build());
             return;
@@ -108,6 +110,7 @@ public class TaskDispatcher {
         taskRepository.save(task.toBuilder()
                 .status(TaskStatus.FAILED_RETRYABLE)
                 .step(taskStep)
+                .attempts(nextAttempts)
                 .nextAttemptAt(nextAttemptAt)
                 .build());
     }

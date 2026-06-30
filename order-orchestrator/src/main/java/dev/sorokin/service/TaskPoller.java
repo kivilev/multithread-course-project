@@ -31,7 +31,7 @@ public class TaskPoller {
             var tasks = pickTasksForProcessing();
             log.info("Tasks were picked. Count:{}, Ids:{}", tasks.size(), tasks.stream().map(TaskEntity::getId).toList());
 
-            tasks.forEach(taskDispatcher::dispatch);
+            tasks.forEach(this::dispatchSafely);
             log.info("Tasks were dispatched. Count:{}, Ids:{}", tasks.size(), tasks.stream().map(TaskEntity::getId).toList());
         } catch (Exception e) {
             log.error("Task poller got exception. Message:{}, stack:{}", e.getMessage(), e.getStackTrace());
@@ -50,13 +50,20 @@ public class TaskPoller {
 
             tasks.forEach(task -> {
                 task.setStatus(TaskStatus.IN_PROGRESS);
-                task.setAttempts(task.getAttempts() + 1);
                 task.setNextAttemptAt(leaseExpiresAt);
             });
 
             taskRepository.saveAll(tasks);
             return tasks;
         });
+    }
+
+    private void dispatchSafely(TaskEntity task) {
+        try {
+            taskDispatcher.dispatch(task);
+        } catch (Exception e) {
+            log.error("Failed to dispatch task: taskId={}", task.getId(), e);
+        }
     }
 
 }
