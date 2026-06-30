@@ -16,10 +16,10 @@ import dev.sorokin.domain.TaskEntity;
 import dev.sorokin.domain.TaskExecutionStatus;
 import dev.sorokin.domain.TaskStep;
 import dev.sorokin.external.StubHttpClient;
-import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Slf4j
 @Component
@@ -29,8 +29,8 @@ public class TaskProcessor {
     private final OrderJpaRepository orderRepository;
     private final TaskJpaRepository taskRepository;
     private final StubHttpClient stubHttpClient;
+    private final TransactionTemplate txTemplate;
 
-    @Transactional
     public TaskProcessResult processTask(TaskEntity task) {
         var orderId = task.getOrderId();
         var orderOptional = orderRepository.findById(orderId);
@@ -78,10 +78,13 @@ public class TaskProcessor {
             log.warn("Payment wasn't authorized. orderId:{}, taskId:{}, message:{}", orderId, task.getId(), authorizePaymentResponse.message());
             return new TaskProcessResult(handleAuthorizePaymentRejected(order, authorizePaymentResponse), TaskStep.AUTH);
         }
-        order.setAuthorizedAmount(authorizePaymentResponse.authorizedAmount());
-        order.setPaymentStatus(PaymentStatus.AUTHORIZED);
-        orderRepository.save(order);
-        advanceTaskStep(task, TaskStep.REPRICE);
+        persistInTransaction(() -> {
+            order.setAuthorizedAmount(authorizePaymentResponse.authorizedAmount());
+            order.setPaymentStatus(PaymentStatus.AUTHORIZED);
+            orderRepository.save(order);
+            task.setStep(TaskStep.REPRICE);
+            taskRepository.save(task);
+        });
         log.info("Payment was authorized. orderId:{}, taskId:{}", orderId, task.getId());
         return null;
     }
@@ -105,9 +108,12 @@ public class TaskProcessor {
                     order.getAuthorizedAmount(), calculateWarehouse.finalAmount(), calculateWarehouse.reason());
             return new TaskProcessResult(handleWarehousePriceBiggerRejected(order, calculateWarehouse), TaskStep.REPRICE);
         }
-        order.setFinalAmount(calculateWarehouse.finalAmount());
-        orderRepository.save(order);
-        advanceTaskStep(task, TaskStep.CAPTURE);
+        persistInTransaction(() -> {
+            order.setFinalAmount(calculateWarehouse.finalAmount());
+            orderRepository.save(order);
+            task.setStep(TaskStep.CAPTURE);
+            taskRepository.save(task);
+        });
         log.info("Order price calculated, proceeding to capture. orderId:{}, taskId:{}", orderId, task.getId());
         return null;
     }
@@ -139,8 +145,14 @@ public class TaskProcessor {
     }
 
     private void advanceTaskStep(TaskEntity task, TaskStep nextStep) {
-        task.setStep(nextStep);
-        taskRepository.save(task);
+        persistInTransaction(() -> {
+            task.setStep(nextStep);
+            taskRepository.save(task);
+        });
+    }
+
+    private void persistInTransaction(Runnable action) {
+        txTemplate.executeWithoutResult(status -> action.run());
     }
 
     private TaskExecutionStatus handlePaymentCaptureRejected(OrderEntity order, CapturePaymentResponseDto paymentCaptureResponse) {
