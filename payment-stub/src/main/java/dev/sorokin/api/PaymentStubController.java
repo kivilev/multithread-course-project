@@ -7,6 +7,7 @@ import dev.sorokin.api.payment.CapturePaymentRequestDto;
 import dev.sorokin.api.payment.CapturePaymentResponseDto;
 import dev.sorokin.api.payment.CaptureStatus;
 import dev.sorokin.config.PaymentStubProperties;
+import dev.sorokin.service.PaymentIdempotencyCheckService;
 import dev.sorokin.utils.StubUtils;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,12 +29,16 @@ import java.util.UUID;
 public class PaymentStubController {
 
     private final PaymentStubProperties properties;
+    private final PaymentIdempotencyCheckService idempotencyCheckService;
 
     @PostMapping("/authorize")
     public ResponseEntity<AuthorizePaymentResponseDto> authorizePayment(
             @RequestBody AuthorizePaymentRequestDto authorizePaymentRequest
     ) {
         log.info("Authorize called: request={}", authorizePaymentRequest);
+
+        idempotencyCheckService.validateKey(authorizePaymentRequest.idempotencyKey());
+
         StubUtils.randomSafeSleepMs(
                 properties.getAuthorizeLatencyMinMillis(),
                 properties.getAuthorizeLatencyMaxMillis()
@@ -62,7 +67,6 @@ public class PaymentStubController {
         }
 
         var authId = UUID.randomUUID();
-
         log.info("Authorize approved: authId={}", authId);
         return ResponseEntity.ok(
                 new AuthorizePaymentResponseDto(
@@ -79,6 +83,9 @@ public class PaymentStubController {
             @RequestBody CapturePaymentRequestDto capturePaymentRequest
     ) {
         log.info("Capture called: request={}", capturePaymentRequest);
+
+        idempotencyCheckService.validateKey(capturePaymentRequest.idempotencyKey());
+
         StubUtils.randomSafeSleepMs(
                 properties.getCaptureLatencyMinMillis(),
                 properties.getCaptureLatencyMaxMillis()
@@ -92,7 +99,6 @@ public class PaymentStubController {
         }
 
         var captureId = UUID.randomUUID();
-
         log.info("Capture succeeded: captureId={}", captureId);
 
         return ResponseEntity.ok(
@@ -104,5 +110,4 @@ public class PaymentStubController {
                 )
         );
     }
-
 }

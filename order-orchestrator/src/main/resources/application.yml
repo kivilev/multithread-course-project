@@ -5,6 +5,8 @@ spring:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/orders}
     username: ${SPRING_DATASOURCE_USERNAME:user}
     password: ${SPRING_DATASOURCE_PASSWORD:pass}
+    hikari:
+      maximum-pool-size: ${SPRING_DATASOURCE_MAXIMUM_POOL_SIZE:20}
   liquibase:
     change-log: classpath:/db/changelog/changelog-master.yaml
   docker:
@@ -23,5 +25,21 @@ springdoc:
   swagger-ui:
     path: /swagger-ui
 
-payment:
-  stub-url: ${PAYMENT_STUB_URL:http://localhost:8081}
+clients:
+  stub:
+    base-url: ${STUB_BASE_URL:http://localhost:8081/}
+    read-timeout: ${STUB_BASE_READ_TIMEOUT:10s}
+    connect-timeout: ${STUB_BASE_CONNECT_TIMEOUT:10s}
+
+task-execution:
+  poller:
+    poll-interval-ms: ${TASK_EXEC_POLL_INTERVAL_MS:10000}
+    batch-size: ${TASK_EXEC_POLL_BATCH_SIZE:10}
+    in-progress-lease-duration: ${TASK_EXEC_IN_PROGRESS_LEASE:2m}
+  dispatcher:
+    retry-delay: ${DISPATCHER_RETRY_DELAY:20s}
+    thread-pool-size: ${DISPATCHER_THREAD_POOL_SIZE:10}
+    max-attempts: ${DISPATCHER_MAX_ATTEMPTS:5}
+    queue-size: ${DISPATCHER_QUEUE_SIZE:1000}
+    await-termination-seconds: ${DISPATCHER_AWAIT_TERMINATION_SECONDS:60}
+    pool-reject-retry-delay: ${DISPATCHER_POOL_REJECT_RETRY_DELAY:1s}

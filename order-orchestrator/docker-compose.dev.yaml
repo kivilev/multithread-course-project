@@ -15,5 +15,6 @@ services:
       dockerfile: payment-stub/Dockerfile
     environment:
       SERVER_PORT: 8081
+      STUB_WAREHOUSE_FINAL_AMOUNT_MIN: 1
     ports:
       - "8081:8081"
