@@ -1,19 +1,19 @@
 package dev.sorokin.service;
 
 import dev.sorokin.config.TaskDispatcherProperties;
-import dev.sorokin.dao.TaskJpaRepository;
 import dev.sorokin.domain.TaskEntity;
 import dev.sorokin.domain.TaskResult;
 import dev.sorokin.domain.TaskStatus;
 import dev.sorokin.domain.TaskStep;
-import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.task.AsyncTaskExecutor;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
 
@@ -24,100 +24,104 @@ public class TaskDispatcher {
 
     private final TaskProcessor taskProcessor;
     private final AsyncTaskExecutor taskDispatcherAsyncExecutor;
-    private final TaskJpaRepository taskRepository;
+    private final EntityUpdaterService entityUpdaterService;
     private final Clock clock;
     private final TaskDispatcherProperties properties;
 
-    @Transactional
     public void dispatch(TaskEntity task) {
         try {
             CompletableFuture
                     .supplyAsync(() -> taskProcessor.processTask(task), taskDispatcherAsyncExecutor)
-                    .thenAccept(result -> handleTaskExecuted(task, result))
+                    .thenAccept(result -> handleTaskExecuted(task.getId(), result))
                     .exceptionally(ex -> handleExceptionInTaskHappened(task, ex));
         } catch (RejectedExecutionException ex) {
             log.warn("Task dispatch rejected (pool full or shutting down): taskId={}", task.getId(), ex);
-            rescheduleAfterPoolReject(task);
+            rescheduleAfterPoolReject(task.getId());
         }
     }
 
-    private void rescheduleAfterPoolReject(TaskEntity task) {
+    private void rescheduleAfterPoolReject(UUID taskId) {
         var nextAttemptAt = Instant.now(clock).plus(properties.getPoolRejectRetryDelay());
-        taskRepository.save(task.toBuilder()
-                .status(TaskStatus.FAILED_RETRYABLE)
-                .step(task.getStep())
-                .nextAttemptAt(nextAttemptAt)
-                .lockedUntil(null)
-                .build());
+        entityUpdaterService.updateTask(taskId, task -> {
+            task.setStatus(TaskStatus.FAILED_RETRYABLE);
+            task.setNextAttemptAt(nextAttemptAt);
+            task.setLockedUntil(null);
+        });
     }
 
-    private Void handleExceptionInTaskHappened(
-            TaskEntity task,
-            Throwable ex
-    ) {
+    private Void handleExceptionInTaskHappened(TaskEntity task, Throwable ex) {
+        if (isStaleOrOptimisticLock(ex)) {
+            log.warn("Stale task processing aborted: taskId={}", task.getId(), ex);
+            return null;
+        }
         log.error("Task failed with unexpected exception: taskId={}, step={}", task.getId(), task.getStep(), ex);
-        scheduleTaskRetry(task, task.getStep());
+        scheduleTaskRetry(task.getId(), task.getStep());
         return null;
     }
 
-    private void handleTaskExecuted(
-            TaskEntity task,
-            TaskProcessResult taskProcessResult
-    ) {
+    private void handleTaskExecuted(UUID taskId, TaskProcessResult taskProcessResult) {
         var taskStep = taskProcessResult.step();
-        log.info("Task executed: taskId={}, status={}", task.getId(), taskProcessResult.status());
+        log.info("Task executed: taskId={}, status={}", taskId, taskProcessResult.status());
         switch (taskProcessResult.status()) {
-            case SUCCESS -> handleTaskSucceeded(task, taskStep);
-            case FAILED_RETRYABLE -> scheduleTaskRetry(task, taskStep);
-            case FAILED_NON_RETRYABLE -> handleTaskFailed(task, taskStep);
+            case SUCCESS -> handleTaskSucceeded(taskId, taskStep);
+            case FAILED_RETRYABLE -> scheduleTaskRetry(taskId, taskStep);
+            case FAILED_NON_RETRYABLE -> handleTaskFailed(taskId, taskStep);
         }
-        log.info("Success processed execution status: taskId={}, status={}", task.getId(), taskProcessResult.status());
+        log.info("Success processed execution status: taskId={}, status={}", taskId, taskProcessResult.status());
     }
 
-    private void handleTaskFailed(TaskEntity task, TaskStep taskStep) {
-        taskRepository.save(task.toBuilder()
-                .status(TaskStatus.FAILED_NON_RETRYABLE)
-                .step(taskStep)
-                .taskResult(TaskResult.FAILURE)
-                .nextAttemptAt(null)
-                .lockedUntil(null)
-                .build());
+    private void handleTaskFailed(UUID taskId, TaskStep taskStep) {
+        entityUpdaterService.updateTask(taskId, task -> {
+            task.setStatus(TaskStatus.FAILED_NON_RETRYABLE);
+            task.setStep(taskStep);
+            task.setTaskResult(TaskResult.FAILURE);
+            task.setNextAttemptAt(null);
+            task.setLockedUntil(null);
+        });
     }
 
-    private void handleTaskSucceeded(TaskEntity task, TaskStep taskStep) {
-        taskRepository.save(task.toBuilder()
-                .status(TaskStatus.SUCCEEDED)
-                .step(taskStep)
-                .taskResult(TaskResult.SUCCESS)
-                .nextAttemptAt(null)
-                .lockedUntil(null)
-                .build());
+    private void handleTaskSucceeded(UUID taskId, TaskStep taskStep) {
+        entityUpdaterService.updateTask(taskId, task -> {
+            task.setStatus(TaskStatus.SUCCEEDED);
+            task.setStep(taskStep);
+            task.setTaskResult(TaskResult.SUCCESS);
+            task.setNextAttemptAt(null);
+            task.setLockedUntil(null);
+        });
     }
 
-    private void scheduleTaskRetry(TaskEntity task, TaskStep taskStep) {
-        log.info("Scheduling default retry for taskId={}", task.getId());
+    private void scheduleTaskRetry(UUID taskId, TaskStep taskStep) {
+        log.info("Scheduling default retry for taskId={}", taskId);
 
-        var nextAttempts = task.getAttempts() + 1;
-        if (nextAttempts >= properties.getMaxAttempts()) {
-            log.error("Maximum number of retries reached: taskId={}", task.getId());
-            taskRepository.save(task.toBuilder()
-                    .status(TaskStatus.FAILED_NON_RETRYABLE)
-                    .step(taskStep)
-                    .attempts(nextAttempts)
-                    .nextAttemptAt(null)
-                    .lockedUntil(null)
-                    .build());
-            return;
+        entityUpdaterService.updateTask(taskId, task -> {
+            var nextAttempts = task.getAttempts() + 1;
+            if (nextAttempts >= properties.getMaxAttempts()) {
+                log.error("Maximum number of retries reached: taskId={}", taskId);
+                task.setStatus(TaskStatus.FAILED_NON_RETRYABLE);
+                task.setStep(taskStep);
+                task.setAttempts(nextAttempts);
+                task.setNextAttemptAt(null);
+                task.setLockedUntil(null);
+                return;
+            }
+
+            var nextAttemptAt = Instant.now(clock).plus(properties.getRetryDelay());
+            task.setStatus(TaskStatus.FAILED_RETRYABLE);
+            task.setStep(taskStep);
+            task.setAttempts(nextAttempts);
+            task.setNextAttemptAt(nextAttemptAt);
+            task.setLockedUntil(null);
+        });
+    }
+
+    private boolean isStaleOrOptimisticLock(Throwable ex) {
+        var current = ex;
+        while (current != null) {
+            if (current instanceof StaleEntityException || current instanceof OptimisticLockingFailureException) {
+                return true;
+            }
+            current = current.getCause();
         }
-
-        var nextAttemptAt = Instant.now(clock).plus(properties.getRetryDelay());
-        taskRepository.save(task.toBuilder()
-                .status(TaskStatus.FAILED_RETRYABLE)
-                .step(taskStep)
-                .attempts(nextAttempts)
-                .nextAttemptAt(nextAttemptAt)
-                .lockedUntil(null)
-                .build());
+        return false;
     }
-
 }

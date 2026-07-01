@@ -9,7 +9,6 @@ import dev.sorokin.api.payment.CaptureStatus;
 import dev.sorokin.api.warehouse.CalculatePricingRequestDto;
 import dev.sorokin.api.warehouse.CalculatePricingResponseDto;
 import dev.sorokin.dao.OrderJpaRepository;
-import dev.sorokin.dao.TaskJpaRepository;
 import dev.sorokin.domain.OrderEntity;
 import dev.sorokin.domain.PaymentStatus;
 import dev.sorokin.domain.TaskEntity;
@@ -19,7 +18,6 @@ import dev.sorokin.external.StubHttpClient;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.support.TransactionTemplate;
 
 @Slf4j
 @Component
@@ -27,9 +25,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 public class TaskProcessor {
 
     private final OrderJpaRepository orderRepository;
-    private final TaskJpaRepository taskRepository;
     private final StubHttpClient stubHttpClient;
-    private final TransactionTemplate txTemplate;
+    private final EntityUpdaterService entityUpdaterService;
 
     public TaskProcessResult processTask(TaskEntity task) {
         var orderId = task.getOrderId();
@@ -77,15 +74,14 @@ public class TaskProcessor {
                 mapToAuthorizePaymentRequest(task, order));
         if (AuthorizationStatus.DECLINED.equals(authorizePaymentResponse.status())) {
             log.warn("Payment wasn't authorized. orderId:{}, taskId:{}, message:{}", orderId, task.getId(), authorizePaymentResponse.message());
-            return new TaskProcessResult(handleAuthorizePaymentRejected(order, authorizePaymentResponse), TaskStep.AUTH);
+            return new TaskProcessResult(handleAuthorizePaymentRejected(task, order, authorizePaymentResponse), TaskStep.AUTH);
         }
-        persistInTransaction(() -> {
-            order.setAuthorizedAmount(authorizePaymentResponse.authorizedAmount());
-            order.setPaymentStatus(PaymentStatus.AUTHORIZED);
-            orderRepository.save(order);
-            task.setStep(TaskStep.REPRICE);
-            taskRepository.save(task);
+        entityUpdaterService.updateTaskAndOrder(task.getId(), orderId, (freshTask, freshOrder) -> {
+            freshOrder.setAuthorizedAmount(authorizePaymentResponse.authorizedAmount());
+            freshOrder.setPaymentStatus(PaymentStatus.AUTHORIZED);
+            freshTask.setStep(TaskStep.REPRICE);
         });
+        task.setStep(TaskStep.REPRICE);
         log.info("Payment was authorized. orderId:{}, taskId:{}", orderId, task.getId());
         return null;
     }
@@ -107,14 +103,13 @@ public class TaskProcessor {
         if (isWarehousePriceBigger) {
             log.warn("Order price was changed. orderId:{}, taskId:{}, authPrice:{}, warehousePrice:{}, reason:{}", orderId, task.getId(),
                     order.getAuthorizedAmount(), calculateWarehouse.finalAmount(), calculateWarehouse.reason());
-            return new TaskProcessResult(handleWarehousePriceBiggerRejected(order, calculateWarehouse), TaskStep.REPRICE);
+            return new TaskProcessResult(handleWarehousePriceBiggerRejected(task, order, calculateWarehouse), TaskStep.REPRICE);
         }
-        persistInTransaction(() -> {
-            order.setFinalAmount(calculateWarehouse.finalAmount());
-            orderRepository.save(order);
-            task.setStep(TaskStep.CAPTURE);
-            taskRepository.save(task);
+        entityUpdaterService.updateTaskAndOrder(task.getId(), orderId, (freshTask, freshOrder) -> {
+            freshOrder.setFinalAmount(calculateWarehouse.finalAmount());
+            freshTask.setStep(TaskStep.CAPTURE);
         });
+        task.setStep(TaskStep.CAPTURE);
         log.info("Order price calculated, proceeding to capture. orderId:{}, taskId:{}", orderId, task.getId());
         return null;
     }
@@ -136,48 +131,58 @@ public class TaskProcessor {
         if (CaptureStatus.FAILED.equals(paymentCaptureResponse.status())) {
             log.warn("Payment wasn't captured. orderId:{}, taskId:{}, message:{}", orderId, task.getId(),
                     paymentCaptureResponse.message());
-            return new TaskProcessResult(handlePaymentCaptureRejected(order, paymentCaptureResponse), TaskStep.CAPTURE);
+            return new TaskProcessResult(handlePaymentCaptureRejected(task, order, paymentCaptureResponse), TaskStep.CAPTURE);
         }
-        order.setCapturedAmount(paymentCaptureResponse.capturedAmount());
-        order.setPaymentStatus(PaymentStatus.SUCCEED_PAID);
-        orderRepository.save(order);
+        entityUpdaterService.updateOrder(orderId, freshOrder -> {
+            freshOrder.setCapturedAmount(paymentCaptureResponse.capturedAmount());
+            freshOrder.setPaymentStatus(PaymentStatus.SUCCEED_PAID);
+        });
         log.info("Payment was captured. orderId:{}, taskId:{}", orderId, task.getId());
 
         return new TaskProcessResult(TaskExecutionStatus.SUCCESS, TaskStep.CAPTURE);
     }
 
     private void advanceTaskStep(TaskEntity task, TaskStep nextStep) {
-        persistInTransaction(() -> {
-            task.setStep(nextStep);
-            taskRepository.save(task);
+        entityUpdaterService.updateTask(task.getId(), freshTask -> freshTask.setStep(nextStep));
+        task.setStep(nextStep);
+    }
+
+    private TaskExecutionStatus handlePaymentCaptureRejected(
+            TaskEntity task,
+            OrderEntity order,
+            CapturePaymentResponseDto paymentCaptureResponse
+    ) {
+        entityUpdaterService.updateOrder(order.getId(), freshOrder -> {
+            freshOrder.setPaymentStatus(PaymentStatus.CAPTURE_FAILED);
+            freshOrder.setCapturedAmount(paymentCaptureResponse.capturedAmount());
+            freshOrder.setFailureReason(paymentCaptureResponse.message());
         });
-    }
-
-    private void persistInTransaction(Runnable action) {
-        txTemplate.executeWithoutResult(status -> action.run());
-    }
-
-    private TaskExecutionStatus handlePaymentCaptureRejected(OrderEntity order, CapturePaymentResponseDto paymentCaptureResponse) {
-        order.setPaymentStatus(PaymentStatus.CAPTURE_FAILED);
-        order.setCapturedAmount(paymentCaptureResponse.capturedAmount());
-        order.setFailureReason(paymentCaptureResponse.message());
-        orderRepository.save(order);
         return TaskExecutionStatus.FAILED_NON_RETRYABLE;
     }
 
-    private TaskExecutionStatus handleWarehousePriceBiggerRejected(OrderEntity order, CalculatePricingResponseDto calculateWarehouse) {
-        order.setPaymentStatus(PaymentStatus.PRICE_CHANGED_FAILED);
-        order.setFailureReason(calculateWarehouse.reason());
-        order.setFinalAmount(calculateWarehouse.finalAmount());
-        orderRepository.save(order);
+    private TaskExecutionStatus handleWarehousePriceBiggerRejected(
+            TaskEntity task,
+            OrderEntity order,
+            CalculatePricingResponseDto calculateWarehouse
+    ) {
+        entityUpdaterService.updateOrder(order.getId(), freshOrder -> {
+            freshOrder.setPaymentStatus(PaymentStatus.PRICE_CHANGED_FAILED);
+            freshOrder.setFailureReason(calculateWarehouse.reason());
+            freshOrder.setFinalAmount(calculateWarehouse.finalAmount());
+        });
         return TaskExecutionStatus.FAILED_NON_RETRYABLE;
     }
 
-    private TaskExecutionStatus handleAuthorizePaymentRejected(OrderEntity order, AuthorizePaymentResponseDto authorizePaymentResponse) {
-        order.setPaymentStatus(PaymentStatus.AUTHORIZATION_FAILED);
-        order.setFailureReason(authorizePaymentResponse.message());
-        order.setAuthorizedAmount(authorizePaymentResponse.authorizedAmount());
-        orderRepository.save(order);
+    private TaskExecutionStatus handleAuthorizePaymentRejected(
+            TaskEntity task,
+            OrderEntity order,
+            AuthorizePaymentResponseDto authorizePaymentResponse
+    ) {
+        entityUpdaterService.updateOrder(order.getId(), freshOrder -> {
+            freshOrder.setPaymentStatus(PaymentStatus.AUTHORIZATION_FAILED);
+            freshOrder.setFailureReason(authorizePaymentResponse.message());
+            freshOrder.setAuthorizedAmount(authorizePaymentResponse.authorizedAmount());
+        });
         return TaskExecutionStatus.FAILED_NON_RETRYABLE;
     }
 

@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS tasks
     attempts        numeric not null,
     next_attempt_at timestamp with time zone,
     locked_until    timestamp with time zone,
+    version         bigint not null default 0,
     created_at      timestamp with time zone not null,
     updated_at      timestamp with time zone not null
 );

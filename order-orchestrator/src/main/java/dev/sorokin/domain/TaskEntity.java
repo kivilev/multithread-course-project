@@ -11,6 +11,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -61,6 +62,10 @@ public class TaskEntity {
 
     @Column(name = "locked_until")
     private Instant lockedUntil;
+
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
 
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)

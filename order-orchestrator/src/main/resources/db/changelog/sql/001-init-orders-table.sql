@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS orders
     captured_amount     numeric(19,2),
     failure_reason      text,
     failure_code        text,
+    version             bigint not null default 0,
     created_at timestamp with time zone not null,
     updated_at timestamp with time zone not null
 );

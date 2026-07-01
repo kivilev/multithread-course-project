@@ -9,6 +9,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -66,6 +67,10 @@ public class OrderEntity {
 
     @Column(name = "failure_code")
     private String failureCode;
+
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
 
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
